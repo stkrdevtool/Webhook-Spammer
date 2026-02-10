@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Webhook Control</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{
+  margin:0;
+  min-height:100vh;
+  background:#000;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-family:system-ui,sans-serif;
+  color:#fee2e2;
+}
+.container{
+  width:94%;
+  max-width:540px;
+  padding:24px;
+  background:linear-gradient(145deg,#1a0000,#000);
+  border-radius:18px;
+  border:1px solid #7f1d1d;
+  box-shadow:0 0 40px rgba(239,68,68,.35);
+}
+h1{
+  text-align:center;
+  margin-bottom:18px;
+  font-size:26px;
+  background:linear-gradient(90deg,#fecaca,#ef4444,#7f1d1d);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+input,textarea{
+  width:100%;
+  box-sizing:border-box;
+  margin-top:10px;
+  padding:13px;
+  border-radius:12px;
+  background:#000;
+  color:#fee2e2;
+  border:1px solid #7f1d1d;
+  outline:none;
+  font-size:14px;
+}
+textarea{height:130px;resize:none}
+.row{
+  display:flex;
+  gap:10px;
+}
+.row input{flex:1}
+button{
+  width:100%;
+  margin-top:14px;
+  padding:15px;
+  font-size:16px;
+  font-weight:bold;
+  border-radius:14px;
+  border:none;
+  cursor:pointer;
+  color:white;
+}
+.send{
+  background:linear-gradient(135deg,#dc2626,#ef4444,#7f1d1d);
+  box-shadow:0 0 20px rgba(239,68,68,.6);
+}
+.stop{
+  background:linear-gradient(135deg,#374151,#111827);
+  box-shadow:0 0 18px rgba(75,85,99,.6);
+}
+.status{
+  margin-top:12px;
+  text-align:center;
+  font-size:13px;
+  color:#fca5a5;
+}
+.log{
+  margin-top:10px;
+  font-size:12px;
+  max-height:90px;
+  overflow:auto;
+  color:#fecaca;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h1>荒帝スパマー</h1>
+
+  <input id="url" placeholder="Token">
+  <input id="server" placeholder="サーバーID">
+  <input id="name" placeholder="Webhook名">
+
+  <textarea id="msg" maxlength="500" placeholder="送信メッセージ（最大500文字）"></textarea>
+
+  <div class="row">
+    <input id="interval" type="number" value="1000" min="500" placeholder="間隔(ms)">
+    <input id="limit" type="number" placeholder="回数（空＝無限）">
+  </div>
+
+  <button class="send" onclick="start()">実行</button>
+  <button class="stop" onclick="stop()">停止</button>
+
+  <div class="status" id="status">待機中</div>
+  <div class="status">送信回数: <span id="count">0</span></div>
+  <div class="log" id="log"></div>
+</div>
+
+<script>
+let timer=null;
+let running=false;
+let count=0;
+
+function log(t){
+  const l=document.getElementById("log");
+  l.innerHTML+=t+"<br>";
+  l.scrollTop=l.scrollHeight;
+}
+
+function start(){
+  if(running) return;
+
+  const url=urlEl.value.trim();
+  const msg=msgEl.value.trim();
+  const name=nameEl.value.trim();
+  const interval=parseInt(intervalEl.value)||1000;
+  const limit=parseInt(limitEl.value)||Infinity;
+
+  if(!url||!msg){
+    statusEl.textContent="入力してないところあるよ";
+    return;
+  }
+  if(msg.length>500){
+    statusEl.textContent="500文字を超えています";
+    return;
+  }
+
+  running=true;
+  count=0;
+  countEl.textContent="0";
+  statusEl.textContent="送信中… STOPで停止";
+  log("▶ 送信開始");
+
+  sendOnce();
+
+  timer=setInterval(()=>{
+    if(count>=limit){
+      log("■ 上限到達しました 停止");
+      stop();
+      return;
+    }
+    sendOnce();
+  },interval);
+}
+
+function sendOnce(){
+  fetch(urlEl.value,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      content:msgEl.value,
+      username:nameEl.value||"Webhook"
+    })
+  }).then(()=>{
+    count++;
+    countEl.textContent=count;
+    log("✔ 送信成功 ("+count+")");
+  }).catch(()=>{
+    log("✖ 送信失敗");
+    stop();
+  });
+}
+
+function stop(){
+  if(!running) return;
+  clearInterval(timer);
+  running=false;
+  statusEl.textContent="停止しました";
+  log("■ 停止");
+}
+
+const urlEl=document.getElementById("url");
+const msgEl=document.getElementById("msg");
+const nameEl=document.getElementById("name");
+const intervalEl=document.getElementById("interval");
+const limitEl=document.getElementById("limit");
+const statusEl=document.getElementById("status");
+const countEl=document.getElementById("count");
+</script>
+</body>
+</html>
